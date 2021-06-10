@@ -48,7 +48,7 @@
 
 // `define IMPLEMENT_CORRECT_BCD_FLAGS
 
-module cpu_65c02( clk, reset, AB, DI, DO, WE, IRQ, NMI, RDY );
+module cpu_65c02( clk, reset, AB, DI, DO, WE, IRQ, NMI, RDY, SYNC );
 
 input clk;              // CPU clock
 input reset;            // reset signal
@@ -59,6 +59,7 @@ output WE;              // write enable
 input IRQ;              // interrupt request
 input NMI;              // non-maskable interrupt request
 input RDY;              // Ready signal. Pauses CPU when RDY=0
+output reg SYNC;        // AB is first cycle of the intruction
 
 /*
  * internal signals
@@ -183,7 +184,6 @@ reg sed;                // set decimal
 reg cli;                // clear interrupt
 reg sei;                // set interrupt
 reg clv;                // clear overflow
-reg brk;                // doing BRK
 
 reg res;                // in reset
 
@@ -490,7 +490,7 @@ always @*
 
         BRK2:    DO = (IRQ | NMI_edge) ? (P & 8'b1110_1111) : P;
 
-        default: DO = store_zero ? 0 : regfile;
+        default: DO = store_zero ? 8'b0 : regfile;
     endcase
 
 /*
@@ -729,7 +729,7 @@ always @*
 
         BRA1:   AI = ABH;       // don't use PCH in case we're
 
-        FETCH:  AI = load_only ? 0 : regfile;
+        FETCH:  AI = load_only ? 8'b0 : regfile;
 
         DECODE,
         ABS1:   AI = 8'hxx;     // don't care
@@ -788,11 +788,11 @@ always @*
 
         READ,
         REG:    CI = rotate ? C :
-                     shift ? 0 : inc;
+                     shift ? 1'b0 : inc;
 
         FETCH:  CI = rotate  ? C :
-                     compare ? 1 :
-                     (shift | load_only) ? 0 : C;
+                     compare ? 1'b1 :
+                     (shift | load_only) ? 1'b0 : C;
 
         PULL0,
         RTI0,
@@ -1068,6 +1068,29 @@ always @(posedge clk or posedge reset)
         BRK3    : state <= JMP0;
 
     endcase
+
+
+/*
+ * Sync state machine
+ */
+always @(posedge clk or posedge reset)
+    if( reset )
+        SYNC <= 1'b0;
+    else if( RDY ) case( state )
+        BRA0   : SYNC <= !cond_true;
+        BRA1   : SYNC <= !(CO ^ backwards);
+        BRA2,
+        FETCH,
+        REG,
+        PUSH1,
+        PULL2,
+        RTI4,
+        JMP1,
+        BRA2   : SYNC <= 1'b1;
+        default: SYNC <= 1'b0;
+    endcase
+
+//assign SYNC = state == DECODE;
 
 /*
  * Additional control signals
@@ -1360,7 +1383,6 @@ always @(posedge clk )
         clv <= (IR == 8'hb8);
         cld <= (IR == 8'hd8);
         sed <= (IR == 8'hf8);
-        brk <= (IR == 8'h00);
      end
 
 always @(posedge clk)
