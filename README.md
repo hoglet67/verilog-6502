@@ -18,6 +18,8 @@ address. This allows direct connection to (Xilinx) block RAMs. When
 using asynchronous memory, I suggest registering the address/control
 lines for glitchless output signals.
 
+[Also check out my new 65C02 project](https://github.com/Arlet/verilog-65c02)
+
 Have fun. 
 
 ==========
