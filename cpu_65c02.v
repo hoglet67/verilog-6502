@@ -834,7 +834,8 @@ always @(posedge clk )
  * Special Z flag got TRB/TSB
  */
 always @(posedge clk)
-    AZ2 <= ~|(AI & regfile);
+    if (RDY)
+        AZ2 <= ~|(AI & regfile);
 
 /*
  * Update Z, N flags when writing A, X, Y, Memory, or when doing compare
