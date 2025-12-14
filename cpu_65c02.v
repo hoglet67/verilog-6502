@@ -916,15 +916,6 @@ always @(posedge clk )
  * time to read the IR again before the next decode.
  */
 
-//reg RDY1 = 1;
-
-//always @(posedge clk )
-//    RDY1 <= RDY;
-
-//always @(posedge clk )
-//    if( ~RDY && RDY1 )
-//        DIHOLD <= DI;
-
 always @(posedge clk )
     if( reset )
         IRHOLD_valid <= 0;
@@ -939,9 +930,11 @@ always @(posedge clk )
 assign IR = (IRQ & ~I) | NMI_edge ? 8'h00 :
                      IRHOLD_valid ? IRHOLD : DIMUX;
 
-//assign DIMUX = ~RDY1 ? DIHOLD : DI;
+always @(posedge clk )
+    if( RDY )
+        DIHOLD <= DI;
 
-assign DIMUX = DI;
+assign DIMUX = ~RDY ? DIHOLD : DI;
 
 /*
  * Microcode state machine
